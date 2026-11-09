@@ -65,3 +65,12 @@ export async function deleteMeme(row) {
 export async function moderate(row) {
   return unwrap(await supabase.rpc('set_meme_hidden', { meme_id: row.id, hidden: !row.is_hidden }));
 }
+
+export async function getPublicMeme(id) {
+  return unwrap(await supabase.from('memes')
+    .select('title,render_path')
+    .eq('id', id)
+    .eq('is_public', true)
+    .eq('is_hidden', false)
+    .maybeSingle());
+}

@@ -1,0 +1,29 @@
+<!doctype html>
+<html lang="bg">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="Публично меме от Meme Lab.">
+  <title>Меме · Meme Lab</title>
+</head>
+<body>
+  <header></header>
+  <main class="container">
+    <div id="status" role="status" aria-live="polite" hidden></div>
+    <a href="./gallery.html">← Обратно към галерията</a>
+    <h1 id="meme-title" class="page-title">Меме<span>.</span></h1>
+    <article id="shared-meme" class="panel" hidden>
+      <img id="meme-image" class="img-fluid rounded d-block mx-auto" alt="">
+      <div class="actions">
+        <button id="copy-link" type="button" class="button primary">Копирай линка</button>
+        <button id="download-meme" type="button" class="button secondary">↓ PNG</button>
+      </div>
+      <label class="d-block mt-3 share-input">Линк към мемето
+        <input id="share-url" class="form-control" type="url" readonly>
+      </label>
+    </article>
+  </main>
+  <footer></footer>
+  <script type="module" src="/src/pages/meme.js"></script>
+</body>
+</html>

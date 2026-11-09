@@ -1,6 +1,6 @@
 import { MAX_CAPTIONS, restoreCaptions } from '../captions.js';
 
-export function createCaptionEditor(canvas, list, add, render) {
+export function createCaptionEditor(canvas, list, add, render, defaults) {
   let layers = [];
   let bounds = [];
   let drag;
@@ -11,6 +11,64 @@ export function createCaptionEditor(canvas, list, add, render) {
     layer.x = Math.min(1, Math.max(0, x));
     layer.y = Math.min(1, Math.max(0, y));
     render();
+  }
+
+  function layerStyle(layer) {
+    const details = document.createElement('details');
+    const summary = document.createElement('summary');
+    summary.textContent = 'Стил на надписа';
+    const toggle = document.createElement('input');
+    toggle.type = 'checkbox';
+    toggle.checked = Boolean(layer.style);
+    toggle.className = 'form-check-input';
+    const label = document.createElement('label');
+    label.append(toggle, ' Собствен стил');
+    const controls = document.createElement('div');
+    controls.className = 'caption-style-controls';
+    const fields = [
+      ['Размер', 'size', 'range', 24, 92],
+      ['Цвят на текста', 'color', 'color'],
+      ['Цвят на контура', 'outline', 'color'],
+      ['Дебелина на контура', 'thickness', 'range', 0, 30],
+      ['Сянка', 'shadow', 'checkbox'],
+    ];
+    const inputs = fields.map(([title, key, type, min, max]) => {
+      const field = document.createElement('label');
+      field.textContent = title;
+      const input = document.createElement('input');
+      input.type = type;
+      input.className = { range: 'form-range', color: 'form-control form-control-color', checkbox: 'form-check-input ms-2' }[type];
+      if (type === 'range') {
+        input.min = min;
+        input.max = max;
+      }
+      input.addEventListener('input', () => {
+        if (!layer.style) return;
+        layer.style[key] = type === 'checkbox' ? input.checked : type === 'range' ? input.valueAsNumber : input.value;
+        render();
+      });
+      field.append(input);
+      controls.append(field);
+      return [key, input];
+    });
+
+    function sync() {
+      controls.hidden = !layer.style;
+      if (!layer.style) return;
+      for (const [key, input] of inputs) {
+        if (input.type === 'checkbox') input.checked = layer.style[key];
+        else input.value = layer.style[key];
+      }
+    }
+    toggle.addEventListener('change', () => {
+      if (toggle.checked) layer.style = defaults();
+      else delete layer.style;
+      sync();
+      render();
+    });
+    details.append(summary, label, controls);
+    sync();
+    return details;
   }
 
   function rebuild() {
@@ -54,7 +112,7 @@ export function createCaptionEditor(canvas, list, add, render) {
         return slider;
       });
       positionInputs.push(controls);
-      field.append(details);
+      field.append(details, layerStyle(layer));
 
       if (index >= 2) {
         const remove = document.createElement('button');

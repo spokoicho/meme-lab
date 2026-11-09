@@ -88,6 +88,13 @@ export async function showMemes(scope, owner) {
       const status = row.is_hidden ? 'Скрито от модератор' : row.is_public ? 'Публично' : 'Лично';
       const { tile, actions } = card(row.title, urls.get(row.render_path), scope === 'gallery' ? null : status);
       actions.append(button('↓ PNG', async () => downloadBlob(await getDownload(row.render_path), row.title)));
+      if ((scope === 'gallery' || scope === 'collection') && row.is_public && !row.is_hidden) {
+        const share = document.createElement('a');
+        share.href = './meme.html?' + new URLSearchParams({ id: row.id });
+        share.className = 'button secondary';
+        share.textContent = 'Отвори и сподели';
+        actions.append(share);
+      }
       if (scope === 'gallery' && !row.source_path && templates.some(template => template.id === row.template_id)) {
         actions.append(remixLink(row.template_id));
       }

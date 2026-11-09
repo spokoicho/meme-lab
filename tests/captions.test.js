@@ -39,3 +39,20 @@ test('draws a saved extra caption in its position with alignment and no outline'
   assert.deepEqual(fills, [['ТРЕТИ', 180, 240, 540]]);
   assert.deepEqual(bounds.map(({ index, x, y }) => [index, x, y]), [[2, 150, 240]]);
 });
+
+test('restores and renders separate caption styles without changing the shared style', () => {
+  const { canvas, context } = preview();
+  const styles = [];
+  context.fillText = text => styles.push([text, context.font, context.fillStyle, context.strokeStyle, context.shadowBlur > 0]);
+  const layout = restoreCaptions(JSON.parse(JSON.stringify({
+    layers: [
+      { text: 'Горе' },
+      { text: 'Долу', style: { size: 32, color: '#ffff00', outline: '#0000ff', thickness: 8, shadow: true } },
+    ],
+  })));
+  drawMeme(canvas, image, { ...layout, size: 50, color: '#ffffff' });
+  assert.deepEqual(styles, [
+    ['ГОРЕ', '900 50px Arial, sans-serif', '#ffffff', '#17131c', false],
+    ['ДОЛУ', '900 32px Arial, sans-serif', '#ffff00', '#0000ff', true],
+  ]);
+});

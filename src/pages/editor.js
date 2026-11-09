@@ -6,6 +6,7 @@ import { supportedImage } from '../image-file.js';
 import { templates } from '../templates.js';
 import { restoreCaptions, MAX_CAPTIONS } from '../captions.js';
 import { createCaptionEditor } from '../ui/caption-editor.js';
+import { clearDraft, draftKey, readDraft, writeDraft } from '../drafts.js';
 
 const form = $('#editor');
 const canvas = $('#canvas');
@@ -23,18 +24,88 @@ let previous;
 let user;
 let selection = 0;
 let loading = false;
+let localDraftKey;
+let pendingDraft;
+let draftTimer;
+let draftDirty = false;
+let cloudSource;
+let awaitingImage = false;
 const info = $('#cloud-info');
 const addCaption = $('#add-caption');
-const captions = createCaptionEditor(canvas, $('#captions'), addCaption, render);
-const settings = () => ({
-  layers: captions.layers,
+const captionStyle = () => ({
   size: Number($('#size').value),
   color: $('#color').value,
   outline: $('#outline').value,
   thickness: Number($('#thickness').value),
   shadow: $('#shadow').checked,
-  align: $('#align').value,
 });
+const captions = createCaptionEditor(canvas, $('#captions'), addCaption, changed, captionStyle);
+const settings = () => ({ ...captionStyle(), layers: captions.layers, align: $('#align').value });
+function snapshotDraft() {
+  const values = settings();
+  return {
+    title: $('#title').value,
+    size: values.size,
+    color: values.color,
+    layout: restoreCaptions(values),
+    isPublic: $('#public').checked,
+    templateId: selectedTemplate,
+    needsUpload: awaitingImage || Boolean(source && source !== cloudSource),
+  };
+}
+function flushDraft() {
+  clearTimeout(draftTimer);
+  if (!localDraftKey || !draftDirty || pendingDraft) return;
+  writeDraft(localDraftKey, snapshotDraft());
+}
+function changed() {
+  render();
+  draftDirty = true;
+  clearTimeout(draftTimer);
+  draftTimer = setTimeout(flushDraft, 250);
+}
+window.addEventListener('pagehide', flushDraft);
+
+$('#discard-draft').addEventListener('click', () => {
+  clearDraft(localDraftKey);
+  pendingDraft = null;
+  $('#draft-offer').hidden = true;
+  flushDraft();
+});
+$('#restore-draft').addEventListener('click', action($('#restore-draft'), async () => {
+  const draft = pendingDraft;
+  if (!draft) return;
+  const template = templates.find(item => item.id === draft.templateId);
+  if (template && selectedTemplate !== template.id) {
+    if (!await selectImage(template.url, template.id)) return;
+    picker.querySelector('[value=""]')?.remove();
+    picker.value = template.id;
+    fileInput.value = '';
+  }
+  if (draft.needsUpload) {
+    image = undefined;
+    source = undefined;
+    selectedTemplate = null;
+    awaitingImage = true;
+    canvas.getContext('2d').clearRect(0, 0, canvas.width, canvas.height);
+    captions.updateBounds([]);
+    if (!picker.querySelector('[value=""]')) picker.add(new Option('Избери изображение', ''));
+    picker.value = '';
+    fileInput.value = '';
+  }
+  $('#title').value = draft.title ?? '';
+  $('#size').value = draft.size ?? 52;
+  $('#color').value = draft.color ?? '#ffffff';
+  $('#public').checked = Boolean(user && draft.isPublic);
+  loadCaptions(draft.layout);
+  pendingDraft = null;
+  $('#draft-offer').hidden = true;
+  refreshButtons();
+  changed();
+  notice(draft.needsUpload ? 'Черновата е възстановена. Качи отново снимката или избери шаблон.'
+    : 'Черновата е възстановена.');
+}));
+
 function loadCaptions(layout, top, bottom) {
   const restored = restoreCaptions(layout, top, bottom);
   captions.load(restored);
@@ -60,6 +131,7 @@ async function selectImage(url, templateId, file = null) {
     image = decoded;
     source = file;
     selectedTemplate = templateId;
+    awaitingImage = false;
     render();
     return true;
   } catch (error) {
@@ -95,8 +167,8 @@ const initial = templates.find(template => template.id === params.get('template'
 picker.value = initial.id;
 const remix = params.get('remix') === '1';
 loadCaptions(null, remix ? '' : initial.top, remix ? '' : initial.bottom);
-for (const control of ['#size', '#color', '#outline', '#thickness', '#shadow', '#align']) {
-  $(control).addEventListener('input', render);
+for (const control of ['#size', '#color', '#outline', '#thickness', '#shadow', '#align', '#title', '#public']) {
+  $(control).addEventListener('input', changed);
 }
 
 picker.addEventListener('change', async () => {
@@ -107,6 +179,7 @@ picker.addEventListener('change', async () => {
     if (await selectImage(template.url, template.id)) {
       picker.querySelector('[value=""]')?.remove();
       fileInput.value = '';
+      changed();
     }
   } catch (error) {
     picker.value = selectedTemplate ?? '';
@@ -121,6 +194,7 @@ fileInput.addEventListener('change', async () => {
     if (await selectFile(file)) {
       if (!picker.querySelector('[value=""]')) picker.add(new Option('Качено изображение', ''));
       picker.value = '';
+      changed();
     }
   } catch (error) {
     fileInput.value = '';
@@ -136,6 +210,7 @@ form.addEventListener('submit', async event => {
   notice('');
   const values = settings();
   const sourceFile = source;
+  const beforeSave = JSON.stringify(snapshotDraft());
   const data = {
     title: $('#title').value.trim() || 'Без заглавие',
     template_id: selectedTemplate,
@@ -149,6 +224,15 @@ form.addEventListener('submit', async event => {
       owner: user.id, previous, data, source: sourceFile, png: await pngBlob(canvas),
     });
     previous = saved;
+    const changedDuringSave = JSON.stringify(snapshotDraft()) !== beforeSave || source !== sourceFile;
+    clearTimeout(draftTimer);
+    clearDraft(localDraftKey);
+    localDraftKey = draftKey(user.id, saved.id);
+    cloudSource = sourceFile;
+    pendingDraft = null;
+    $('#draft-offer').hidden = true;
+    draftDirty = changedDuringSave;
+    flushDraft();
     history.replaceState(null, '', './editor.html?id=' + saved.id);
     notice(cleanupFailed ? 'Мемето е запазено. Старите файлове изискват почистване.' : 'Мемето е запазено.');
   } catch (error) { notice(error.message, true); }
@@ -175,6 +259,7 @@ async function initialize() {
         picker.add(new Option('Качено изображение', ''));
         picker.value = '';
         await selectFile(await getDownload(previous.source_path));
+        cloudSource = source;
       } else {
         const template = templates.find(item => item.id === previous.template_id);
         picker.value = template.id;
@@ -182,6 +267,14 @@ async function initialize() {
       }
     } else {
       await selectImage(initial.url, initial.id);
+    }
+    localDraftKey = draftKey(user?.id ?? 'guest', editId ?? (initial.id + (remix ? ':remix' : '')));
+    pendingDraft = readDraft(localDraftKey);
+    if (pendingDraft) {
+      $('#draft-message').textContent = pendingDraft.needsUpload
+        ? 'Има локална чернова. За възстановяване на качената снимка ще трябва да я избереш отново.'
+        : 'Има локална чернова за това меме.';
+      $('#draft-offer').hidden = false;
     }
   } catch (error) {
     previous = null;
