@@ -42,11 +42,11 @@ npx supabase status
 ```bash
 npx supabase login
 npx supabase link --project-ref YOUR_PROJECT_REF
-npx supabase db push
-npx supabase migration list
+npx supabase db push --remote
+npx supabase migration list --remote
 ```
 
-Локалната и отдалечената история трябва да показват едни и същи версии. Ако има миграции, създадени от друг разработчик, синхронизирай ги с `npx supabase migration fetch` и прегледай промените преди следващ `db push`. SQL файловете се проследяват в Git. Командите са за отделен проект за Meme Lab.
+Локалната и отдалечената история трябва да показват едни и същи версии. Ако има миграции, създадени от друг разработчик, синхронизирай ги с `npx supabase migration fetch --remote` и прегледай промените преди следващ `db push`. SQL файловете се проследяват в Git. Командите са за отделен проект за Meme Lab.
 
 ## Тестови акаунти
 
