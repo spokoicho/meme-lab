@@ -8,8 +8,23 @@
 </head>
 <body>
   <header></header>
-  <main class="container"><div id="status" role="status" aria-live="polite" hidden></div><section class="panel auth-panel"><div class="eyebrow">ТВОЯТ ПРОФИЛ</div><h1 class="page-title">Вход<span>.</span></h1><form id="auth" class="form-stack"><label>Имейл<input type="email" name="email" autocomplete="email" class="form-control" required></label><label>Парола<input type="password" name="password" autocomplete="current-password" class="form-control" required></label><button class="button primary">Влез</button></form><p>Нов тук? <a href="./register.html">Създай профил</a></p></section></main>
+  <main class="container"><div id="status" role="status" aria-live="polite" hidden></div><section class="panel auth-panel" id="login-panel"><div class="eyebrow">ТВОЯТ ПРОФИЛ</div><h1 class="page-title">Вход<span>.</span></h1><form id="auth" class="form-stack"><label>Имейл<input type="email" name="email" autocomplete="email" class="form-control" required></label><label>Парола<input type="password" name="password" autocomplete="current-password" class="form-control" required></label><button class="button primary">Влез</button></form><p><a href="#forgot-password" id="forgot-password">Забравена парола?</a></p><p>Нов тук? <a href="./register.html">Създай профил</a></p></section>
+    <section class="panel auth-panel" id="recovery-panel" hidden>
+      <h1 class="page-title">Възстановяване на парола<span>.</span></h1>
+      <form id="request-recovery" class="form-stack">
+        <label>Имейл<input type="email" name="email" autocomplete="email" class="form-control" required></label>
+        <button class="button primary">Изпрати линк</button>
+      </form>
+      <form id="change-password" class="form-stack" hidden>
+        <label>Нова парола<input type="password" name="password" minlength="8" autocomplete="new-password" class="form-control" required></label>
+        <label>Повтори новата парола<input type="password" name="confirmation" minlength="8" autocomplete="new-password" class="form-control" required></label>
+        <button class="button primary">Запази новата парола</button>
+      </form>
+      <p><a href="./login.html">Обратно към вход</a></p>
+    </section>
+  </main>
   <footer></footer>
   <script type="module" src="/src/pages/auth.js"></script>
+  <script type="module" src="/src/pages/recovery.js"></script>
 </body>
 </html>

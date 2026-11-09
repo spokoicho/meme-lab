@@ -29,3 +29,5 @@ canvas{display:block;max-width:100%;max-height:65vh;width:auto;height:auto;margi
 .auth-panel{max-width:470px;margin:auto}.auth-panel .page-title{font-size:clamp(2.5rem,6vw,4rem)}.auth-panel p{margin:1rem 0 0}.notice{padding:.7rem 1rem;margin-bottom:1rem;background:#eee7fc;border-left:4px solid var(--purple);overflow-wrap:anywhere}.notice.error{background:#fff0ec;border-color:#aa3420}.empty{grid-column:1/-1;background:white;border:1px dashed var(--line);padding:1.2rem;border-radius:12px}
 @media(max-width:760px){.hero,.editor-grid{grid-template-columns:1fr}.topbar{flex-wrap:wrap;padding-block:.6rem}.topbar nav{order:3;width:100%;gap:.7rem}.hero-art{max-width:520px}main{padding-block:2rem 3rem}.section{margin-top:3rem}}
 @media(prefers-reduced-motion:reduce){.button{transition:none}}
+
+.auth-panel [hidden] { display: none; }
