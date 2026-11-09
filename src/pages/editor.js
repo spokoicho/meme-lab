@@ -2,6 +2,7 @@ import { $, action, notice, userReady } from '../ui/shell.js';
 import { supabase } from '../services/client.js';
 import { getDownload, getMeme, saveMeme } from '../services/memes.js';
 import { downloadBlob, drawMeme, loadImage, pngBlob } from '../canvas.js';
+import { supportedImage } from '../image-file.js';
 import { templates } from '../templates.js';
 
 const form = $('#editor');
@@ -56,8 +57,21 @@ async function selectImage(url, templateId, file = null) {
   }
 }
 async function selectFile(file) {
-  const url = URL.createObjectURL(file);
-  try { return await selectImage(url, null, file); }
+  const request = ++selection;
+  loading = true;
+  refreshButtons();
+  let normalized;
+  try {
+    normalized = await supportedImage(file);
+  } catch (error) {
+    if (request !== selection) return false;
+    loading = false;
+    refreshButtons();
+    throw error;
+  }
+  if (request !== selection) return false;
+  const url = URL.createObjectURL(normalized);
+  try { return await selectImage(url, null, normalized); }
   finally { URL.revokeObjectURL(url); }
 }
 
@@ -86,19 +100,14 @@ fileInput.addEventListener('change', async () => {
   const file = fileInput.files[0];
   if (!file) return;
   notice('');
-  if (!['image/png', 'image/jpeg', 'image/webp'].includes(file.type) || file.size > 10 * 1024 * 1024) {
-    fileInput.value = '';
-    notice('Избери PNG, JPEG или WebP до 10 MB.', true);
-    return;
-  }
   try {
     if (await selectFile(file)) {
       if (!picker.querySelector('[value=""]')) picker.add(new Option('Качено изображение', ''));
       picker.value = '';
     }
-  } catch {
+  } catch (error) {
     fileInput.value = '';
-    notice('Изображението не може да се отвори.', true);
+    notice(error instanceof DOMException ? 'Изображението не може да се отвори.' : error.message, true);
   }
 });
 download.onclick = action(download, async () => downloadBlob(await pngBlob(canvas), $('#title').value));
