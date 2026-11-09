@@ -14,6 +14,8 @@ const params = new URLSearchParams(location.search);
 const editId = params.get('id');
 let image;
 let source;
+let selectedTemplate;
+let saving = false;
 let previous;
 let user;
 let selection = 0;
@@ -30,18 +32,20 @@ function render() {
 }
 function refreshButtons() {
   download.disabled = loading || !image;
-  save.disabled = loading || !image || !user || Boolean(editId && !previous);
+  save.disabled = saving || loading || !image || !user || Boolean(editId && !previous);
 }
-async function selectImage(url, file = null) {
+async function selectImage(url, templateId, file = null) {
   const request = ++selection;
   loading = true;
   refreshButtons();
   try {
     const decoded = await loadImage(url);
-    if (request !== selection) return;
+    if (request !== selection) return false;
     image = decoded;
     source = file;
+    selectedTemplate = templateId;
     render();
+    return true;
   } catch (error) {
     if (request === selection) throw error;
   } finally {
@@ -53,7 +57,7 @@ async function selectImage(url, file = null) {
 }
 async function selectFile(file) {
   const url = URL.createObjectURL(file);
-  try { await selectImage(url, file); }
+  try { return await selectImage(url, null, file); }
   finally { URL.revokeObjectURL(url); }
 }
 
@@ -69,12 +73,14 @@ picker.addEventListener('change', async () => {
   notice('');
   try {
     const template = templates.find(item => item.id === picker.value);
-    await selectImage(template.url);
-    if (!source) {
+    if (await selectImage(template.url, template.id)) {
       picker.querySelector('[value=""]')?.remove();
       fileInput.value = '';
     }
-  } catch (error) { notice(error.message, true); }
+  } catch (error) {
+    picker.value = selectedTemplate ?? '';
+    notice(error.message, true);
+  }
 });
 fileInput.addEventListener('change', async () => {
   const file = fileInput.files[0];
@@ -86,8 +92,7 @@ fileInput.addEventListener('change', async () => {
     return;
   }
   try {
-    await selectFile(file);
-    if (source === file) {
+    if (await selectFile(file)) {
       if (!picker.querySelector('[value=""]')) picker.add(new Option('Качено изображение', ''));
       picker.value = '';
     }
@@ -97,23 +102,33 @@ fileInput.addEventListener('change', async () => {
   }
 });
 download.onclick = action(download, async () => downloadBlob(await pngBlob(canvas), $('#title').value));
-form.addEventListener('submit', action(save, async () => {
-  if (!user || loading || !image || (editId && !previous)) return;
+form.addEventListener('submit', async event => {
+  event.preventDefault();
+  if (!user || saving || loading || !image || (editId && !previous)) return;
+  saving = true;
+  refreshButtons();
+  notice('');
   const values = settings();
   const sourceFile = source;
   const data = {
     title: $('#title').value.trim() || 'Без заглавие',
-    template_id: picker.value || null,
+    template_id: selectedTemplate,
     top_text: values.top, bottom_text: values.bottom, font_size: values.size, text_color: values.color,
     is_public: $('#public').checked,
   };
-  const { saved, cleanupFailed } = await saveMeme({
-    owner: user.id, previous, data, source: sourceFile, png: await pngBlob(canvas),
-  });
-  previous = saved;
-  history.replaceState(null, '', './editor.html?id=' + saved.id);
-  notice(cleanupFailed ? 'Мемето е запазено. Старите файлове изискват почистване.' : 'Мемето е запазено.');
-}));
+  try {
+    const { saved, cleanupFailed } = await saveMeme({
+      owner: user.id, previous, data, source: sourceFile, png: await pngBlob(canvas),
+    });
+    previous = saved;
+    history.replaceState(null, '', './editor.html?id=' + saved.id);
+    notice(cleanupFailed ? 'Мемето е запазено. Старите файлове изискват почистване.' : 'Мемето е запазено.');
+  } catch (error) { notice(error.message, true); }
+  finally {
+    saving = false;
+    refreshButtons();
+  }
+});
 
 async function initialize() {
   const controls = [...form.elements];
@@ -136,10 +151,10 @@ async function initialize() {
       } else {
         const template = templates.find(item => item.id === previous.template_id);
         picker.value = template.id;
-        await selectImage(template.url);
+        await selectImage(template.url, template.id);
       }
     } else {
-      await selectImage(initial.url);
+      await selectImage(initial.url, initial.id);
     }
   } catch (error) {
     previous = null;
