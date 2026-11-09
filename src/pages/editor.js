@@ -19,6 +19,7 @@ const editId = params.get('id');
 let image;
 let source;
 let selectedTemplate;
+let selectedTemplateUrl;
 let saving = false;
 let previous;
 let user;
@@ -41,13 +42,21 @@ const captionStyle = () => ({
 });
 const captions = createCaptionEditor(canvas, $('#captions'), addCaption, changed, captionStyle);
 const settings = () => ({ ...captionStyle(), layers: captions.layers, align: $('#align').value });
+function templateUrlForLayout(template, layout) {
+  return template.format === 'webp' && !layout?.templatePhoto
+    ? './templates/' + template.id + '.svg'
+    : template.url;
+}
+function captionLayout(values) {
+  return { ...restoreCaptions(values), templatePhoto: Boolean(selectedTemplateUrl?.endsWith('.webp')) };
+}
 function snapshotDraft() {
   const values = settings();
   return {
     title: $('#title').value,
     size: values.size,
     color: values.color,
-    layout: restoreCaptions(values),
+    layout: captionLayout(values),
     isPublic: $('#public').checked,
     templateId: selectedTemplate,
     needsUpload: awaitingImage || Boolean(source && source !== cloudSource),
@@ -76,8 +85,9 @@ $('#restore-draft').addEventListener('click', action($('#restore-draft'), async 
   const draft = pendingDraft;
   if (!draft) return;
   const template = templates.find(item => item.id === draft.templateId);
-  if (template && selectedTemplate !== template.id) {
-    if (!await selectImage(template.url, template.id)) return;
+  const templateUrl = template && templateUrlForLayout(template, draft.layout);
+  if (template && selectedTemplateUrl !== templateUrl) {
+    if (!await selectImage(templateUrl, template.id)) return;
     picker.querySelector('[value=""]')?.remove();
     picker.value = template.id;
     fileInput.value = '';
@@ -86,6 +96,7 @@ $('#restore-draft').addEventListener('click', action($('#restore-draft'), async 
     image = undefined;
     source = undefined;
     selectedTemplate = null;
+    selectedTemplateUrl = undefined;
     awaitingImage = true;
     canvas.getContext('2d').clearRect(0, 0, canvas.width, canvas.height);
     captions.updateBounds([]);
@@ -131,6 +142,7 @@ async function selectImage(url, templateId, file = null) {
     image = decoded;
     source = file;
     selectedTemplate = templateId;
+    selectedTemplateUrl = templateId ? url : undefined;
     awaitingImage = false;
     render();
     return true;
@@ -216,7 +228,7 @@ form.addEventListener('submit', async event => {
     template_id: selectedTemplate,
     top_text: values.layers[0].text, bottom_text: values.layers[1].text,
     font_size: values.size, text_color: values.color,
-    caption_layout: restoreCaptions(values),
+    caption_layout: captionLayout(values),
     is_public: $('#public').checked,
   };
   try {
@@ -263,7 +275,7 @@ async function initialize() {
       } else {
         const template = templates.find(item => item.id === previous.template_id);
         picker.value = template.id;
-        await selectImage(template.url, template.id);
+        await selectImage(templateUrlForLayout(template, previous.caption_layout), template.id);
       }
     } else {
       await selectImage(initial.url, initial.id);
