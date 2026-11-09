@@ -14,4 +14,9 @@ export const templates = [
   { id: 'traffic', name: 'Задръстване по график', top: 'Тръгнах по-рано да избегна трафика', bottom: 'Запазих си място на първия ред', format: 'webp' },
   { id: 'fitness', name: 'Фитнес за начинаещи', top: 'Една серия за загрявка', bottom: 'Тялото ми: „Беше чест.“', format: 'webp' },
   { id: 'parcel', name: 'Пратка с изненада', top: 'Поръчах една чаша', bottom: 'Кашонът е с отделна спалня', format: 'webp' },
+  { id: 'parking', name: 'Паркиране по усет', top: 'Паркирайте както ви е удобно', bottom: 'И всички приеха задачата присърце', format: 'webp' },
+  { id: 'donkeys', name: 'Две магарета, един план', top: 'Казаха, че ще има екипна работа', bottom: 'И двамата чакаме другия', format: 'webp' },
+  { id: 'please', name: 'Айде де… Не.', top: 'Само още пет минути', bottom: 'Тези пет минути ги знам', format: 'webp' },
+  { id: 'overthinking', name: 'Мисли в три сутринта', top: 'Тя: спи спокойно', bottom: 'Аз: защо казах „и на вас“ на сервитьора?', format: 'webp' },
+  { id: 'judgecat', name: 'Котката те съди', top: 'Купи ми легло за 80 евро', bottom: 'Кашонът е приличен. Благодаря.', format: 'webp' },
 ].map(template => ({ ...template, url: './templates/' + template.id + '.' + (template.format ?? 'svg') }));
