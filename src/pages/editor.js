@@ -43,7 +43,7 @@ const captionStyle = () => ({
 const captions = createCaptionEditor(canvas, $('#captions'), addCaption, changed, captionStyle);
 const settings = () => ({ ...captionStyle(), layers: captions.layers, align: $('#align').value });
 function templateUrlForLayout(template, layout) {
-  return template.format === 'webp' && !layout?.templatePhoto
+  return template.legacySvg && !layout?.templatePhoto
     ? './templates/' + template.id + '.svg'
     : template.url;
 }
