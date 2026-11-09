@@ -1,3 +1,5 @@
+import { captionDefaults } from './captions.js';
+
 export function wrapCaption(text, maxWidth, measure) {
   const lines = [];
   let line = '';
@@ -36,8 +38,10 @@ export function drawMeme(canvas, image, settings) {
   const { width, height } = canvas;
   ctx.drawImage(image, 0, 0, width, height);
   const pad = width * .05;
-  const captions = [settings.top, settings.bottom].map(text => text.toLocaleUpperCase('bg'));
-  if (!captions.some(text => text.trim())) return;
+  const style = { ...captionDefaults, ...settings };
+  const layers = settings.layers ?? [{ text: settings.top }, { text: settings.bottom }];
+  const captions = layers.map(layer => layer.text.toLocaleUpperCase('bg'));
+  if (!captions.some(text => text.trim())) return [];
   let size = Math.max(1, settings.size * width / 600);
   let lines;
   while (true) {
@@ -48,20 +52,36 @@ export function drawMeme(canvas, image, settings) {
   }
   const step = size * 1.12;
   const inset = Math.min(height * .05, pad);
-  ctx.textAlign = 'center';
+  ctx.textAlign = style.align;
   ctx.textBaseline = 'middle';
   ctx.lineJoin = 'round';
-  ctx.lineWidth = size * .14;
-  ctx.strokeStyle = '#17131c';
+  if (style.thickness) ctx.lineWidth = size * style.thickness / 100;
+  ctx.strokeStyle = style.outline;
   ctx.fillStyle = settings.color;
-  for (const [index, group] of lines.entries()) {
-    const start = index === 0 ? inset + step / 2 : height - inset - step * (group.length - .5);
-    group.forEach((line, row) => {
-      const y = start + row * step;
-      ctx.strokeText(line, width / 2, y, width - pad * 2);
-      ctx.fillText(line, width / 2, y, width - pad * 2);
-    });
+  if (style.shadow) {
+    ctx.shadowColor = 'rgba(0, 0, 0, .8)';
+    ctx.shadowBlur = size * .12;
+    ctx.shadowOffsetY = size * .09;
   }
+  const bounds = [];
+  for (const [index, group] of lines.entries()) {
+    if (!group.length) continue;
+    const halfWidth = Math.min(width - pad * 2, Math.max(...group.map(line => ctx.measureText(line).width))) / 2;
+    const halfHeight = step * group.length / 2;
+    const defaultY = index === 0 ? inset + halfHeight
+      : index === 1 ? height - inset - halfHeight
+        : height * (.35 + ((index - 2) % 5) * .075);
+    const x = Math.max(halfWidth, Math.min(width - halfWidth, (layers[index].x ?? .5) * width));
+    const y = Math.max(halfHeight, Math.min(height - halfHeight, layers[index].y == null ? defaultY : layers[index].y * height));
+    const anchor = style.align === 'left' ? x - halfWidth : style.align === 'right' ? x + halfWidth : x;
+    group.forEach((line, row) => {
+      const baseline = y - halfHeight + (row + .5) * step;
+      if (style.thickness) ctx.strokeText(line, anchor, baseline, width - pad * 2);
+      ctx.fillText(line, anchor, baseline, width - pad * 2);
+    });
+    bounds.push({ index, x, y, halfWidth, halfHeight });
+  }
+  return bounds;
 }
 
 export function pngBlob(canvas) {

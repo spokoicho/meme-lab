@@ -15,7 +15,7 @@ export async function listMemes(scope, owner) {
   return unwrap(await query);
 }
 export async function getMeme(id, owner) {
-  return unwrap(await supabase.from('memes').select(fields).eq('id', id).eq('user_id', owner).single());
+  return unwrap(await supabase.from('memes').select(fields + ',caption_layout').eq('id', id).eq('user_id', owner).single());
 }
 export async function getDownload(path) {
   return unwrap(await files().download(path));

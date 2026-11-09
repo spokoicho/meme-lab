@@ -4,6 +4,8 @@ import { getDownload, getMeme, saveMeme } from '../services/memes.js';
 import { downloadBlob, drawMeme, loadImage, pngBlob } from '../canvas.js';
 import { supportedImage } from '../image-file.js';
 import { templates } from '../templates.js';
+import { restoreCaptions, MAX_CAPTIONS } from '../captions.js';
+import { createCaptionEditor } from '../ui/caption-editor.js';
 
 const form = $('#editor');
 const canvas = $('#canvas');
@@ -22,14 +24,27 @@ let user;
 let selection = 0;
 let loading = false;
 const info = $('#cloud-info');
+const addCaption = $('#add-caption');
+const captions = createCaptionEditor(canvas, $('#captions'), addCaption, render);
 const settings = () => ({
-  top: $('#top').value,
-  bottom: $('#bottom').value,
+  layers: captions.layers,
   size: Number($('#size').value),
   color: $('#color').value,
+  outline: $('#outline').value,
+  thickness: Number($('#thickness').value),
+  shadow: $('#shadow').checked,
+  align: $('#align').value,
 });
+function loadCaptions(layout, top, bottom) {
+  const restored = restoreCaptions(layout, top, bottom);
+  captions.load(restored);
+  $('#outline').value = restored.outline;
+  $('#thickness').value = restored.thickness;
+  $('#shadow').checked = restored.shadow;
+  $('#align').value = restored.align;
+}
 function render() {
-  if (image) drawMeme(canvas, image, settings());
+  if (image) captions.updateBounds(drawMeme(canvas, image, settings()));
 }
 function refreshButtons() {
   download.disabled = loading || !image;
@@ -78,9 +93,11 @@ async function selectFile(file) {
 for (const template of templates) picker.add(new Option(template.name, template.id));
 const initial = templates.find(template => template.id === params.get('template')) ?? templates[0];
 picker.value = initial.id;
-$('#top').value = initial.top;
-$('#bottom').value = initial.bottom;
-for (const control of ['#top', '#bottom', '#size', '#color']) $(control).addEventListener('input', render);
+const remix = params.get('remix') === '1';
+loadCaptions(null, remix ? '' : initial.top, remix ? '' : initial.bottom);
+for (const control of ['#size', '#color', '#outline', '#thickness', '#shadow', '#align']) {
+  $(control).addEventListener('input', render);
+}
 
 picker.addEventListener('change', async () => {
   if (!picker.value) return;
@@ -122,7 +139,9 @@ form.addEventListener('submit', async event => {
   const data = {
     title: $('#title').value.trim() || 'Без заглавие',
     template_id: selectedTemplate,
-    top_text: values.top, bottom_text: values.bottom, font_size: values.size, text_color: values.color,
+    top_text: values.layers[0].text, bottom_text: values.layers[1].text,
+    font_size: values.size, text_color: values.color,
+    caption_layout: restoreCaptions(values),
     is_public: $('#public').checked,
   };
   try {
@@ -148,8 +167,7 @@ async function initialize() {
       if (!user) throw new Error('Влез в профила си, за да редактираш запазено меме.');
       previous = await getMeme(editId, user.id);
       $('#title').value = previous.title;
-      $('#top').value = previous.top_text;
-      $('#bottom').value = previous.bottom_text;
+      loadCaptions(previous.caption_layout, previous.top_text, previous.bottom_text);
       $('#size').value = previous.font_size;
       $('#color').value = previous.text_color;
       $('#public').checked = previous.is_public;
@@ -173,6 +191,7 @@ async function initialize() {
     info.textContent = user ? 'Можеш да запазиш мемето само за себе си или да го публикуваш.'
       : supabase ? 'Влез в профила си за запазване в облака.' : 'Можеш да създаваш и сваляш мемета. Запазването в профил изисква свързване със Supabase.';
     $('#public').disabled = !user;
+    addCaption.disabled = captions.layers.length >= MAX_CAPTIONS;
     refreshButtons();
   }
 }

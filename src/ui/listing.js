@@ -18,6 +18,14 @@ function button(label, task) {
   return control;
 }
 
+function remixLink(templateId) {
+  const link = document.createElement('a');
+  link.href = './editor.html?' + new URLSearchParams({ template: templateId, remix: '1' });
+  link.className = 'button secondary';
+  link.textContent = 'Използвай този шаблон';
+  return link;
+}
+
 function card(title, url, status) {
   const tile = document.createElement('article');
   tile.className = 'tile';
@@ -46,13 +54,23 @@ function card(title, url, status) {
   return { tile, actions };
 }
 
+export function showGalleryTemplates() {
+  const cards = templates.map(template => {
+    const { tile, actions } = card(template.name, template.url);
+    actions.append(remixLink(template.id));
+    return tile;
+  });
+  $('#gallery-template-list').replaceChildren(...cards);
+  $('#gallery-templates').hidden = false;
+}
+
 export async function demoGallery() {
   const cards = await Promise.all(templates.map(async template => {
     const canvas = document.createElement('canvas');
     const image = await loadImage(template.url);
     drawMeme(canvas, image, { ...template, size: 45, color: '#ffffff' });
     const { tile, actions } = card(template.name, canvas.toDataURL('image/png'), 'Примерно меме');
-    actions.append(button('↓ PNG', async () => downloadBlob(await pngBlob(canvas), template.name)));
+    actions.append(button('↓ PNG', async () => downloadBlob(await pngBlob(canvas), template.name)), remixLink(template.id));
     return tile;
   }));
   $('#listing').replaceChildren(...cards);
@@ -70,6 +88,9 @@ export async function showMemes(scope, owner) {
       const status = row.is_hidden ? 'Скрито от модератор' : row.is_public ? 'Публично' : 'Лично';
       const { tile, actions } = card(row.title, urls.get(row.render_path), scope === 'gallery' ? null : status);
       actions.append(button('↓ PNG', async () => downloadBlob(await getDownload(row.render_path), row.title)));
+      if (scope === 'gallery' && !row.source_path && templates.some(template => template.id === row.template_id)) {
+        actions.append(remixLink(row.template_id));
+      }
       if (scope === 'collection') {
         const edit = document.createElement('a');
         edit.href = './editor.html?id=' + row.id;

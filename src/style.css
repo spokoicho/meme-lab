@@ -31,3 +31,11 @@ canvas{display:block;max-width:100%;max-height:65vh;width:auto;height:auto;margi
 @media(prefers-reduced-motion:reduce){.button{transition:none}}
 
 .auth-panel [hidden] { display: none; }
+
+#canvas { touch-action: none; cursor: grab; }
+#canvas.dragging { cursor: grabbing; }
+.preview-tip { margin: .75rem 0 0; font-size: .9rem; }
+.caption-field { display: grid; gap: .35rem; }
+.caption-field summary { cursor: pointer; }
+.caption-field details label { display: block; margin: .35rem 0; }
+.caption-field .quiet { justify-self: start; }
