@@ -1,6 +1,6 @@
 # Meme Lab
 
-- Keep seven separate HTML entry points in Vite. Use ES modules, Bootstrap 5 and plain JavaScript.
+- Keep the eight page entry points separate in Vite. Use ES modules, Bootstrap 5 and plain JavaScript.
 - Keep Bulgarian UI text with correct Cyrillic spelling. Test on narrow and wide viewports.
 - Put shared UI in `src/ui`, page controllers in `src/pages`, Supabase operations in `src/services`.
 - Keep guest creation and PNG export working without a Supabase connection.
